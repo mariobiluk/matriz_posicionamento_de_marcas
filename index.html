@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Matriz de Posicionamento Omnicanal</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js">
+  </script>
+  <style>
+    :root {
+      --bg: #F4F5F7;
+      --card: #FFFFFF;
+      --ink: #101B33;
+      --muted: #5B6472;
+      --rule: #E4E7EC;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      color: var(--ink);
+      display: flex;
+      justify-content: center;
+      padding: 48px 20px;
+    }
+
+    .sheet {
+      width: 100%;
+      max-width: 1000px;
+      background: var(--card);
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      padding: 44px 48px 36px;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0 0 6px;
+    }
+
+    .subtitle {
+      font-size: 13.5px;
+      color: var(--muted);
+      margin: 0 0 30px;
+      max-width: 640px;
+      line-height: 1.5;
+    }
+
+    .chart-wrap {
+      position: relative;
+      max-width: 660px;
+      margin: 0 auto;
+    }
+
+    #radar {
+      width: 100%;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 22px;
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--ink);
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s, color 0.2s;
+      user-select: none;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .legend-item:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .legend-item.hidden {
+      opacity: 0.4;
+      text-decoration: line-through;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .tag {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      background: #1F6F4A;
+      color: #fff;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 2px;
+    }
+
+    .foot {
+      margin-top: 26px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <p class="eyebrow">Análise Competitiva · Mercado de Suplementos</p>
+    <h1>Matriz de Posicionamento Comunicativo Omnicanal</h1>
+    <p class="subtitle">
+      Proximidade relativa das marcas aos 10 territórios‑chave de comunicação do setor,
+      em escala de 0 (sem presença) a 10 (território dominante).
+    </p>
+
+    <div class="chart-wrap">
+      <canvas id="radar"></canvas>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <p class="foot">
+      Escala de 0–10 por território · valores estimados a partir da análise qualitativa de posicionamento · <strong>Clique no nome da marca</strong> para ocultar/exibir seu blob.
+    </p>
+  </div>
+
+  <script>
+    // ---- DADOS ----
+    const categories = [
+      ['1 · Performance'],
+      ['2 · Hipertrofia', 'e Força'],
+      ['3 · Aspiração', 'e Motivação'],
+      ['4 · Comunidade', 'e Conexão'],
+      ['5 · Produtos', 'e Inovação'],
+      ['6 · Custo‑Benefício', 'e Acessibilidade'],
+      ['7 · Saúde', 'e Bem‑estar'],
+      ['8 · Lifestyle', 'Fitness'],
+      ['9 · Autoridade', 'e Confiança'],
+      ['10 · Ciência', 'e Educação'],
+    ];
+
+    const brands = [
+      { name: 'Growth Supplements', color: '#1F6F4A', data: [4, 3, 4, 5, 7, 8, 5, 5, 9, 9] },
+      { name: 'Max Titanium', color: '#B0264B', data: [9, 9, 9, 8, 5, 4, 3, 4, 5, 4] },
+      { name: 'Integralmedica', color: '#C2570A', data: [9, 8, 5, 4, 5, 4, 4, 3, 7, 7] },
+      { name: 'DUX Nutrition Lab', color: '#4B3F8C', data: [3, 3, 4, 4, 4, 3, 8, 9, 5, 4] },
+      { name: 'Dark Lab', color: '#2B333B', data: [5, 7, 6, 5, 8, 5, 3, 3, 3, 3] },
+      { name: 'Soldiers Nutrition', color: '#8A6240', data: [6, 7, 4, 4, 7, 8, 4, 3, 3, 3] },
+    ];
+
+    // ---- CORES COM TRANSPARÊNCIA PARA OS BLOBS ----
+    const alpha = 0.25; // transparência dos blobs (maior = mais opaco)
+    const blobColors = brands.map(b => {
+      const hex = b.color.replace('#', '');
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b2 = parseInt(hex.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b2}, ${alpha})`;
+    });
+
+    // ---- CONFIGURAÇÃO DO GRÁFICO ----
+    const ctx = document.getElementById('radar').getContext('2d');
+
+    const chart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: categories,
+        datasets: brands.map((b, i) => ({
+          label: b.name,
+          data: b.data,
+          borderColor: b.color,
+          backgroundColor: blobColors[i], // blob preenchido com transparência
+          pointBackgroundColor: b.color,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1,
+          borderWidth: b.name === 'Growth Supplements' ? 3.5 : 2,
+          pointRadius: b.name === 'Growth Supplements' ? 4 : 3,
+          pointHoverRadius: 5,
+          tension: 0,
+          fill: true, // ativa o preenchimento
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#101B33',
+            padding: 10,
+            titleFont: { family: 'Inter', size: 12, weight: '600' },
+            bodyFont: { family: 'Inter', size: 12 },
+            callbacks: {
+              title: (items) => items[0].label.replaceAll(',', ' ')
+            }
+          }
+        },
+        scales: {
+          r: {
+            min: 0,
+            max: 10,
+            ticks: {
+              stepSize: 2,
+              showLabelBackdrop: false,
+              color: '#9AA1AC',
+              font: { family: 'Inter', size: 10 }
+            },
+            grid: { color: '#E4E7EC' },
+            angleLines: { color: '#E4E7EC' },
+            pointLabels: {
+              color: '#101B33',
+              font: { family: 'Inter', size: 11, weight: '600' },
+              padding: 14
+            }
+          }
+        }
+      }
+    });
+
+    // ---- LEGENDA INTERATIVA ----
+    const legendEl = document.getElementById('legend');
+
+    brands.forEach((b, index) => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.dataset.index = index;
+
+      const swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.style.background = b.color;
+
+      const label = document.createElement('span');
+      label.textContent = b.name;
+
+      item.appendChild(swatch);
+      item.appendChild(label);
+
+      if (b.name === 'Growth Supplements') {
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = 'Marca própria';
+        item.appendChild(tag);
+      }
+
+      // Evento de clique: toggle visibilidade do dataset
+      item.addEventListener('click', () => {
+        const meta = chart.getDatasetMeta(index);
+        const isHidden = meta.hidden === true;
+
+        // Alterna a visibilidade
+        meta.hidden = !isHidden;
+        chart.update();
+
+        // Aplica o estilo de "riscado" na legenda
+        item.classList.toggle('hidden', !isHidden);
+      });
+
+      legendEl.appendChild(item);
+    });
+  </script>
+</body>
+</html>
